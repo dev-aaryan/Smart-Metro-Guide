@@ -1,0 +1,60 @@
+🚇 Smart Metro Guide (C++)
+
+Smart Metro Guide is a C++ console-based application that simulates a smart metro navigation system for the Delhi Metro. It provides functionalities such as listing all stations, displaying the metro map, calculating the shortest distance or time between two stations, and suggesting optimal paths with interchanges.
+
+📌 Features
+
+📍 List all metro stations
+🗺️ View the entire metro map with connections and distances
+🔢 Get the shortest distance between any two stations
+⏱️ Get the shortest travel time (based on a fixed time per station and per kilometer)
+🧭 Display the path taken for the shortest distance and time
+🔁 Identify and count interchanges along the route
+🔍 Smart input matching for partial or lowercase station names
+
+🛠️ How It Works
+
+Graph-Based Structure: Each station is a node, and connections are edges with weights representing distances (in KM).
+Dijkstra's Algorithm: Used for both shortest distance and shortest time calculations.
+Stack-Based DFS: Used for path tracing and alternate path generation.
+Heuristic Travel Time: Travel time includes a 2-minute base time per station and 40 seconds per kilometer (rounded to minutes).
+
+📋 Menu Options
+
+When you run the program, you get the following choices:
+
+1. List All Stations
+2. Show Metro Map
+3. Get Shortest Distance
+4. Get Shortest Time
+5. Get Shortest Path (Distance)
+6. Get Shortest Path (Time)
+7. Exit
+
+🚦 Sample Metro Network
+
+Here are some example connections:
+
+Noida Sector 62 → Botanical Garden (8 KM)
+Rajiv Chowk → Moti Nagar → Janak Puri West → Dwarka Sector 21
+Huda City Center → Saket → AIIMS → Rajiv Chowk
+Chandni Chowk → Vishwavidyalaya
+And many more pre-initialized connections!
+
+🧠 Technologies Used
+Language: C++
+Data Structures: unordered_map, priority_queue, stack, vector
+Algorithms: Dijkstra’s algorithm, DFS (Depth-First Search)
+
+💡 Example Use Case
+
+Enter source station: rajiv
+Enter destination station: saket
+
+Output:
+Shortest Distance: 13 KM
+Path: Rajiv Chowk -> AIIMS -> Saket
+
+
+🙌 Credits
+Created with ❤️ using C++ for educational and simulation purposes, focused on optimizing metro travel in Delhi.
