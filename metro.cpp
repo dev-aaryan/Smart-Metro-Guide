@@ -3,7 +3,7 @@ using namespace std;
 
 class Station {
 public:
-    unordered_map<string, int> neighbors;
+    unordered_map<string, int> neighbors;  //<Name of station, dist to reach this station>
 };
 
 class DijkstraNode {
@@ -27,62 +27,62 @@ public:
 
 class MetroGraph {
 public:
-    unordered_map<string, Station*> stations;
+    unordered_map<string, Station*> allstations;
 
     ~MetroGraph() {
-        for (auto& entry : stations)
+        for (auto& entry : allstations)
             delete entry.second;
     }
 
     int countStations() {
-        return stations.size();
+        return allstations.size();
     }
 
     int countConnections() {
         int connectionCount = 0;
-        for (auto& entry : stations)
+        for (auto& entry : allstations)
             connectionCount += entry.second->neighbors.size();
         return connectionCount / 2;
     }
 
     void deleteStation(const string& name) {
         if (!hasStation(name)) return;
-        for (auto& neighbor : stations[name]->neighbors) {
-            stations[neighbor.first]->neighbors.erase(name);
+        for (auto& neighbor : allstations[name]->neighbors) {
+            allstations[neighbor.first]->neighbors.erase(name);
         }
-        delete stations[name];
-        stations.erase(name);
+        delete allstations[name];
+        allstations.erase(name);
     }
 
     void deleteConnection(const string& from, const string& to) {
         if (hasConnection(from, to)) {
-            stations[from]->neighbors.erase(to);
-            stations[to]->neighbors.erase(from);
+            allstations[from]->neighbors.erase(to);
+            allstations[to]->neighbors.erase(from);
         }
     }
     
     void addStation(const string& name) {
-        stations[name] = new Station();
+        allstations[name] = new Station();
+    }
+
+    bool hasStation(const string& name) {
+        return allstations.find(name) != allstations.end();
     }
 
     void addConnection(const string& from, const string& to, int distance) {
         if (!hasStation(from) || !hasStation(to)) return;
-        stations[from]->neighbors[to] = distance;
-        stations[to]->neighbors[from] = distance;
-    }
-
-    bool hasStation(const string& name) {
-        return stations.find(name) != stations.end();
+        allstations[from]->neighbors[to] = distance;
+        allstations[to]->neighbors[from] = distance;
     }
 
     bool hasConnection(const string& from, const string& to) {
-        return hasStation(from) && hasStation(to) && stations[from]->neighbors.count(to);
+        return hasStation(from) && hasStation(to) && allstations[from]->neighbors.count(to);
     }
 
     bool existsPath(string from, string to, unordered_map<string, bool>& visited) {
         if (hasConnection(from, to)) return true;
         visited[from] = true;
-        for (auto& neighbor : stations[from]->neighbors) {
+        for (auto& neighbor : allstations[from]->neighbors) {
             if (!visited[neighbor.first]) {
                 if (existsPath(neighbor.first, to, visited)) return true;
             }
@@ -94,7 +94,7 @@ public:
         unordered_map<string, DijkstraNode> nodeMap;
         priority_queue<DijkstraNode> pq;
 
-        for (auto& entry : stations) {
+        for (auto& entry : allstations) {
             DijkstraNode node;
             node.stationName = entry.first;
             node.totalCost = (entry.first == start ? 0 : INT_MAX);
@@ -104,11 +104,15 @@ public:
         }
 
         while (!pq.empty()) {
-            DijkstraNode current = pq.top(); pq.pop();
+            DijkstraNode current = pq.top(); 
+            pq.pop();
             if (current.stationName == end) return current.totalCost;
 
-            for (auto& neighbor : stations[current.stationName]->neighbors) {
-                int cost = current.totalCost + (timeMode ? 120 + 40 * neighbor.second : neighbor.second);
+            for (auto& neighbor : allstations[current.stationName]->neighbors) {
+                // Calculate cost based on distance or time
+                // For time, we assume 180 seconds for boarding and 80 seconds per 1 unit distance
+                int cost = current.totalCost + (timeMode ? 180 + 80 * neighbor.second : neighbor.second);
+
                 if (cost < nodeMap[neighbor.first].totalCost) {
                     nodeMap[neighbor.first].totalCost = cost;
                     nodeMap[neighbor.first].pathSoFar = current.pathSoFar + neighbor.first;
@@ -119,96 +123,85 @@ public:
         return -1;
     }
 
-    string shortestDistancePath(string start, string end) {
-        unordered_map<string, bool> visited;
-        stack<PathNode> st;
-        PathNode startNode{start, start + "  ", 0, 0};
-        st.push(startNode);
-        int minDist = INT_MAX;
-        string resultPath = "";
+    string shortestPath(string start, string end, bool timeMode) {
+       unordered_map<string, bool> visited;
+       stack<PathNode> st;
 
-        while (!st.empty()) {
-            PathNode current = st.top(); st.pop();
-            if (visited[current.stationName]) continue;
-            visited[current.stationName] = true;
-            if (current.stationName == end && current.totalDistance < minDist) {
-                minDist = current.totalDistance;
-                resultPath = current.pathSoFar;
-                continue;
+       PathNode startNode{start, start + "  ", 0, 0};
+       st.push(startNode);
+
+       int minValue = INT_MAX;
+       string resultPath = "";
+
+       while (!st.empty()) {
+           PathNode current = st.top();
+           st.pop();
+
+           if (visited[current.stationName]) continue;
+           visited[current.stationName] = true;
+
+           int currentValue = timeMode ? current.totalTime : current.totalDistance;
+
+           if (current.stationName == end && currentValue < minValue) {
+            minValue = currentValue;
+            resultPath = current.pathSoFar;
+            continue;
             }
-            for (auto& neighbor : stations[current.stationName]->neighbors) {
-                if (!visited[neighbor.first]) {
-                    PathNode next{neighbor.first, current.pathSoFar + neighbor.first + "  ", current.totalDistance + neighbor.second, 0};
-                    st.push(next);
+
+        for (auto& neighbor : allstations[current.stationName]->neighbors) {
+            if (!visited[neighbor.first]) {
+                PathNode next;
+                next.stationName = neighbor.first;
+                next.pathSoFar = current.pathSoFar + neighbor.first + "  ";
+
+                if (timeMode) {
+                    next.totalTime = current.totalTime + 180 + 80 * neighbor.second;
+                    next.totalDistance = current.totalDistance;
+                } else {
+                    next.totalDistance = current.totalDistance + neighbor.second;
+                    next.totalTime = current.totalTime;
                 }
+
+                st.push(next);
             }
         }
-        resultPath += to_string(minDist);
-        return resultPath;
     }
 
-    string shortestTimePath(string start, string end) {
-        unordered_map<string, bool> visited;
-        stack<PathNode> st;
-        PathNode startNode{start, start + "  ", 0, 0};
-        st.push(startNode);
-        int minTime = INT_MAX;
-        string resultPath = "";
+    if (timeMode) resultPath += to_string((int)floor((double)minValue / 60));  // minutes
+    else resultPath += to_string(minValue); // km
 
-        while (!st.empty()) {
-            PathNode current = st.top(); st.pop();
-            if (visited[current.stationName]) continue;
-            visited[current.stationName] = true;
-            if (current.stationName == end && current.totalTime < minTime) {
-                minTime = current.totalTime;
-                resultPath = current.pathSoFar;
-                continue;
-            }
-            for (auto& neighbor : stations[current.stationName]->neighbors) {
-                if (!visited[neighbor.first]) {
-                    PathNode next;
-                    next.stationName = neighbor.first;
-                    next.pathSoFar = current.pathSoFar + neighbor.first + "  ";
-                    next.totalTime = current.totalTime + 120 + 40 * neighbor.second;
-                    st.push(next);
-                }
-            }
-        }
-        resultPath += to_string((int)ceil((double)minTime / 60));
-        return resultPath;
+    return resultPath;
     }
 
     vector<string> parsePathWithInterchanges(const string& str) {
-        vector<string> result;
-        stringstream ss(str);
-        string token;
-        vector<string> tokens;
-        while (getline(ss, token, ' ')) if (!token.empty()) tokens.push_back(token);
-        result.push_back(tokens[0]);
-        int interchangeCount = 0;
-        for (int i = 1; i < (int)tokens.size() - 1; ++i) {
-            size_t idx = tokens[i].find('~');
-            string line1 = tokens[i].substr(idx + 1);
-            if (line1.size() == 2) {
-                string prev = tokens[i - 1].substr(tokens[i - 1].find('~') + 1);
-                string next = tokens[i + 1].substr(tokens[i + 1].find('~') + 1);
-                if (prev == next) result.push_back(tokens[i]);
-                else {
-                    result.push_back(tokens[i] + " ==> " + tokens[i + 1]);
-                    ++i; interchangeCount++;
-                }
-            } else result.push_back(tokens[i]);
-        }
-        result.push_back(to_string(interchangeCount));
-        result.push_back(tokens.back());
-        return result;
+    vector<string> tokens;
+    regex re(" {2,}");  // Split by 2 or more spaces
+    sregex_token_iterator it(str.begin(), str.end(), re, -1);
+    sregex_token_iterator end;
+
+    while (it != end) {
+        tokens.push_back(*it++);
+    }
+
+    if (tokens.size() < 2) return {};
+
+    string finalCost = tokens.back();  // distance or time
+    tokens.pop_back();                 // remove cost
+
+    int totalStations = tokens.size();
+    int interchanges = max(0, totalStations - 1);
+
+    vector<string> result = tokens;
+    result.push_back(to_string(interchanges));
+    result.push_back(finalCost);
+    return result;
     }
 
     void showMetroMap() {
         cout << "\t Delhi Metro Map\n";
         cout << "\t------------------\n";
         cout << "----------------------------------------------------\n";
-        for (auto& entry : stations) {
+        for (auto& entry : allstations) {
             cout << entry.first << " =>\n";
             for (auto& neighbor : entry.second->neighbors) {
                 cout << "\t" << neighbor.first << "\t";
@@ -224,7 +217,7 @@ public:
     void listAllStations() {
         cout << "\n***********************************************************************\n\n";
         int idx = 1;
-        for (auto& entry : stations) {
+        for (auto& entry : allstations) {
             cout << idx++ << ". " << entry.first << endl;
         }
         cout << "\n***********************************************************************\n\n";
@@ -232,7 +225,7 @@ public:
 
     string matchStationInput(string userInput) {
         transform(userInput.begin(), userInput.end(), userInput.begin(), ::tolower);
-        for (auto& pair : stations) {
+        for (auto& pair : allstations) {
             string stationLower = pair.first;
             transform(stationLower.begin(), stationLower.end(), stationLower.begin(), ::tolower);
             if (stationLower.find(userInput) != string::npos)
@@ -318,7 +311,7 @@ int main() {
 
             case 3: {
                 string from, to;
-                cout << "Enter source station: ";
+                cout << "\nEnter source station: ";
                 getline(cin, from);
                 cout << "Enter destination station: ";
                 getline(cin, to);
@@ -340,7 +333,7 @@ int main() {
 
             case 4: {
                 string from, to;
-                cout << "Enter source station: ";
+                cout << "\nEnter source station: ";
                 getline(cin, from);
                 cout << "Enter destination station: ";
                 getline(cin, to);
@@ -362,7 +355,7 @@ int main() {
 
             case 5: {
                 string from, to;
-                cout << "Enter source station: ";
+                cout << "\nEnter source station: ";
                 getline(cin, from);
                 cout << "Enter destination station: ";
                 getline(cin, to);
@@ -378,18 +371,21 @@ int main() {
                 if (!metro.existsPath(from, to, visited)) {
                     cout << "No path found.\n";
                 } else {
-                    auto path = metro.parsePathWithInterchanges(metro.shortestDistancePath(from, to));
+                    auto path = metro.parsePathWithInterchanges(metro.shortestPath(from, to,false));
+                    // ex: path = ["Rajiv Chowk", "Central Secretariat", "Kashmere Gate", "2", "12"]
+                    // i.e. path = [stations in strings, interchanges count, distance in KM]
+
                     cout << "Path:\n";
-                    for (int i = 0; i < (int)path.size() - 2; i++)
+                    for (int i = 0; i < path.size() - 2; i++)
                         cout << path[i] << " -> ";
                     cout << "\nDistance: " << path.back() << " KM, Interchanges: " << *(path.end() - 2) << "\n";
                 }
-                break;
+                break; 
             }
 
             case 6: {
                 string from, to;
-                cout << "Enter source station: ";
+                cout << "\nEnter source station: ";
                 getline(cin, from);
                 cout << "Enter destination station: ";
                 getline(cin, to);
@@ -405,9 +401,11 @@ int main() {
                 if (!metro.existsPath(from, to, visited)) {
                     cout << "No path found.\n";
                 } else {
-                    auto path = metro.parsePathWithInterchanges(metro.shortestTimePath(from, to));
+                    auto path = metro.parsePathWithInterchanges(metro.shortestPath(from, to, true));
+                    // ex: path = ["Rajiv Chowk", "Central Secretariat", "Kashmere Gate", "2", "12"]
+                    // i.e. path = [stations in strings, interchanges count, time in minutes]
                     cout << "Path:\n";
-                    for (int i = 0; i < (int)path.size() - 2; i++)
+                    for (int i = 0; i < path.size() - 2; i++)
                         cout << path[i] << " -> ";
                     cout << "\nTime: " << path.back() << " minutes, Interchanges: " << *(path.end() - 2) << "\n";
                 }
